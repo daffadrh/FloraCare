@@ -4,7 +4,7 @@ FloraCare is a mobile application designed to help users track and care for thei
 
 ---
 
-## 🚀 Getting Started (For Team Members)
+## 🚀 Getting Started 
 
 When you pull this repository for the first time, you must run the following commands to install dependencies and run the application.
 
@@ -41,9 +41,9 @@ lib/
 ```
 
 ### 👥 Member Assignments & Ownership
-*   **Member 1 (Plant Inventory)**: Work inside `lib/features/inventory/`. Implements plant lists, details, and creation forms.
-*   **Member 2 (Care Schedule)**: Work inside `lib/features/schedule/`. Implements watering calendars and daily reminder triggers.
-*   **Member 3 (Health Journal)**: Work inside `lib/features/journal/`. Implements image-based diagnosis scanning (Plant.id API) and environmental integrations (OpenWeather API).
+*   **Plant Inventory**: Work inside `lib/features/inventory/`. Implements plant lists, details, and creation forms.
+*   **Care Schedule**: Work inside `lib/features/schedule/`. Implements watering calendars and daily reminder triggers.
+*   **Health Journal**: Work inside `lib/features/journal/`. Implements image-based diagnosis scanning (Plant.id API) and environmental integrations (OpenWeather API).
 
 ---
 
