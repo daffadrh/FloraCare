@@ -35,9 +35,9 @@ lib/
 └── features/
     ├── home/            # Welcome Dashboard & ECO-Tips (Shared)
     ├── auth/            # Firebase Authentication (Shared)
-    ├── inventory/       # Feature 1: Plant Inventory CRUD (Member 1)
-    ├── schedule/        # Feature 2: Care Schedule & Tasks (Member 2 - Placeholder)
-    └── journal/         # Feature 3: Health Journal & APIs (Member 3 - Placeholder)
+    ├── inventory/       # Feature 1: Plant Inventory CRUD
+    ├── schedule/        # Feature 2: Care Schedule & Tasks
+    └── journal/         # Feature 3: Health Journal & APIs 
 ```
 
 ### 👥 Member Assignments & Ownership
