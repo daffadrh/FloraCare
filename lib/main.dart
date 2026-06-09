@@ -6,7 +6,8 @@ import 'core/navigation/nav_shell.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/inventory/providers/inventory_provider.dart';
-import 'features/schedule/providers/schedule_provider.dart';
+import 'features/journal/providers/journal_provider.dart';
+import 'features/schedule/providers/schedule_provider.dart'; 
 
 import 'firebase_options.dart';
 
@@ -28,7 +29,8 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => InventoryProvider()),
-        ChangeNotifierProvider(create: (_) => ScheduleProvider()),
+        ChangeNotifierProvider(create: (_) => JournalProvider()), 
+        ChangeNotifierProvider(create: (_) => ScheduleProvider()), 
       ],
       child: const MyApp(),
     ),
