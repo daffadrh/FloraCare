@@ -103,21 +103,42 @@ class PlantDetailScreen extends StatelessWidget {
                 Container(
                   height: 200,
                   width: double.infinity,
+                  clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
+                    gradient: const LinearGradient(
                       colors: [AppColors.primary, AppColors.primaryLight],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
                     borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
                   ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.local_florist,
-                      size: 80,
-                      color: Colors.white,
-                    ),
-                  ),
+                  child: plant.imageUrl != null && plant.imageUrl!.isNotEmpty
+                      ? Image.network(
+                          plant.imageUrl!,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, progress) {
+                            if (progress == null) return child;
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) => const Center(
+                            child: Icon(
+                              Icons.broken_image_outlined,
+                              color: Colors.white,
+                              size: 40,
+                            ),
+                          ),
+                        )
+                      : const Center(
+                          child: Icon(
+                            Icons.local_florist,
+                            size: 80,
+                            color: Colors.white,
+                          ),
+                        ),
                 ),
                 const SizedBox(height: AppDimensions.lg),
 

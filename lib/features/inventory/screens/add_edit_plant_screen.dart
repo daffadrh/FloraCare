@@ -1,10 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/constants.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../models/plant_model.dart';
 import '../providers/inventory_provider.dart';
+import '../services/cloudinary_service.dart';
 
 class AddEditPlantScreen extends StatefulWidget {
   final Plant? plant; // If provided, we are editing. If null, we are adding.
@@ -28,6 +31,11 @@ class _AddEditPlantScreenState extends State<AddEditPlantScreen> {
   
   DateTime? _lastFertilized;
   int? _fertilizingFrequencyDays;
+
+  File? _imageFile;
+  final ImagePicker _picker = ImagePicker();
+  final CloudinaryService _cloudinaryService = CloudinaryService();
+  bool _isUploading = false;
   
   final List<String> _sunlightOptions = [
     'Low',
@@ -56,6 +64,58 @@ class _AddEditPlantScreenState extends State<AddEditPlantScreen> {
     _speciesController.dispose();
     _notesController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final pickedFile = await _picker.pickImage(
+        source: source,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+      if (pickedFile != null) {
+        setState(() {
+          _imageFile = File(pickedFile.path);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+    }
+  }
+
+  void _showImageSourceSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppDimensions.radiusLg)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Choose from Gallery'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Take a Photo'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _selectLastWateredDate(BuildContext context) async {
@@ -98,22 +158,33 @@ class _AddEditPlantScreenState extends State<AddEditPlantScreen> {
         return;
       }
 
-      final p = widget.plant;
-      final plantData = Plant(
-        id: p?.id ?? '', // Service will assign an ID if blank
-        userId: authProvider.user!.uid,
-        name: _nameController.text.trim(),
-        species: _speciesController.text.trim(),
-        lastWatered: _lastWatered,
-        wateringFrequencyDays: _wateringFrequencyDays,
-        lastFertilized: _lastFertilized,
-        fertilizingFrequencyDays: _fertilizingFrequencyDays,
-        sunlightRequirement: _sunlightRequirement,
-        imageUrl: p?.imageUrl, // Keep current URL if editing
-        notes: _notesController.text.trim(),
-      );
+      setState(() => _isUploading = true);
+      String? uploadedImageUrl = widget.plant?.imageUrl;
 
       try {
+        // Handle Cloudinary upload if a new photo was chosen
+        if (_imageFile != null) {
+          final resultUrl = await _cloudinaryService.uploadImage(_imageFile!.path);
+          if (resultUrl != null) {
+            uploadedImageUrl = resultUrl;
+          }
+        }
+
+        final p = widget.plant;
+        final plantData = Plant(
+          id: p?.id ?? '', // Service will assign an ID if blank
+          userId: authProvider.user!.uid,
+          name: _nameController.text.trim(),
+          species: _speciesController.text.trim(),
+          lastWatered: _lastWatered,
+          wateringFrequencyDays: _wateringFrequencyDays,
+          lastFertilized: _lastFertilized,
+          fertilizingFrequencyDays: _fertilizingFrequencyDays,
+          sunlightRequirement: _sunlightRequirement,
+          imageUrl: uploadedImageUrl,
+          notes: _notesController.text.trim(),
+        );
+
         if (p == null) {
           // Creating new plant
           await inventoryProvider.addPlant(plantData);
@@ -149,6 +220,10 @@ class _AddEditPlantScreenState extends State<AddEditPlantScreen> {
             ),
           );
         }
+      } finally {
+        if (mounted) {
+          setState(() => _isUploading = false);
+        }
       }
     }
   }
@@ -157,6 +232,7 @@ class _AddEditPlantScreenState extends State<AddEditPlantScreen> {
   Widget build(BuildContext context) {
     final isEditing = widget.plant != null;
     final dateFormat = DateFormat('MMMM dd, yyyy');
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -170,6 +246,61 @@ class _AddEditPlantScreenState extends State<AddEditPlantScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Image Selector Card
+                Card(
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: _isUploading ? null : _showImageSourceSheet,
+                    child: Container(
+                      height: 180,
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.cardDark : Colors.grey[100],
+                        border: Border.all(
+                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                          width: 1,
+                        ),
+                        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                      ),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          if (_imageFile != null)
+                            Image.file(_imageFile!, fit: BoxFit.cover)
+                          else if (widget.plant?.imageUrl != null && widget.plant!.imageUrl!.isNotEmpty)
+                            Image.network(
+                              widget.plant!.imageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return const Center(child: CircularProgressIndicator());
+                              },
+                            )
+                          else
+                            _buildPlaceholder(),
+                          Positioned(
+                            bottom: AppDimensions.sm,
+                            right: AppDimensions.sm,
+                            child: Container(
+                              padding: const EdgeInsets.all(AppDimensions.xs),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withAlpha(200),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.camera_alt,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppDimensions.md),
+
                 // Section 1: Basic Info
                 Card(
                   child: Padding(
@@ -183,6 +314,7 @@ class _AddEditPlantScreenState extends State<AddEditPlantScreen> {
                         // Plant Name
                         TextFormField(
                           controller: _nameController,
+                          enabled: !_isUploading,
                           decoration: const InputDecoration(
                             labelText: 'Plant Nickname *',
                             prefixIcon: Icon(Icons.label_outline),
@@ -200,6 +332,7 @@ class _AddEditPlantScreenState extends State<AddEditPlantScreen> {
                         // Plant Species
                         TextFormField(
                           controller: _speciesController,
+                          enabled: !_isUploading,
                           decoration: const InputDecoration(
                             labelText: 'Species / Variety *',
                             prefixIcon: Icon(Icons.psychology_outlined),
@@ -227,7 +360,7 @@ class _AddEditPlantScreenState extends State<AddEditPlantScreen> {
                               child: Text(opt),
                             );
                           }).toList(),
-                          onChanged: (val) {
+                          onChanged: _isUploading ? null : (val) {
                             if (val != null) {
                               setState(() {
                                 _sunlightRequirement = val;
@@ -258,7 +391,7 @@ class _AddEditPlantScreenState extends State<AddEditPlantScreen> {
                           title: const Text('Last Watered Date *'),
                           subtitle: Text(dateFormat.format(_lastWatered)),
                           trailing: const Icon(Icons.chevron_right),
-                          onTap: () => _selectLastWateredDate(context),
+                          onTap: _isUploading ? null : () => _selectLastWateredDate(context),
                         ),
                         const Divider(),
 
@@ -281,7 +414,7 @@ class _AddEditPlantScreenState extends State<AddEditPlantScreen> {
                           divisions: 29,
                           activeColor: AppColors.primary,
                           label: '$_wateringFrequencyDays days',
-                          onChanged: (val) {
+                          onChanged: _isUploading ? null : (val) {
                             setState(() {
                               _wateringFrequencyDays = val.round();
                             });
@@ -314,14 +447,14 @@ class _AddEditPlantScreenState extends State<AddEditPlantScreen> {
                           trailing: _lastFertilized != null
                             ? IconButton(
                                 icon: const Icon(Icons.clear),
-                                onPressed: () => setState(() => _lastFertilized = null),
+                                onPressed: _isUploading ? null : () => setState(() => _lastFertilized = null),
                               )
                             : const Icon(Icons.chevron_right),
-                          onTap: () => _selectLastFertilizedDate(context),
+                          onTap: _isUploading ? null : () => _selectLastFertilizedDate(context),
                         ),
                         const Divider(),
 
-                        // Fertilizing Frequency Slider/Switch
+                        // Fertilizing Frequency Slider
                         const SizedBox(height: AppDimensions.sm),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -344,7 +477,7 @@ class _AddEditPlantScreenState extends State<AddEditPlantScreen> {
                           label: _fertilizingFrequencyDays == null || _fertilizingFrequencyDays == 0
                               ? 'Disabled'
                               : '$_fertilizingFrequencyDays days',
-                          onChanged: (val) {
+                          onChanged: _isUploading ? null : (val) {
                             setState(() {
                               final intVal = val.round();
                               _fertilizingFrequencyDays = intVal == 0 ? null : intVal;
@@ -369,6 +502,7 @@ class _AddEditPlantScreenState extends State<AddEditPlantScreen> {
                         TextFormField(
                           controller: _notesController,
                           maxLines: 3,
+                          enabled: !_isUploading,
                           decoration: const InputDecoration(
                             hintText: 'Enter care tips, warnings, or special instructions here...',
                             alignLabelWithHint: true,
@@ -382,8 +516,17 @@ class _AddEditPlantScreenState extends State<AddEditPlantScreen> {
 
                 // Submit Button
                 ElevatedButton(
-                  onPressed: _submitForm,
-                  child: Text(isEditing ? 'Save Changes' : 'Add to My Garden'),
+                  onPressed: _isUploading ? null : _submitForm,
+                  child: _isUploading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Text(isEditing ? 'Save Changes' : 'Add to My Garden'),
                 ),
                 const SizedBox(height: AppDimensions.xl),
               ],
@@ -391,6 +534,34 @@ class _AddEditPlantScreenState extends State<AddEditPlantScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildPlaceholder() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.add_photo_alternate_outlined,
+          size: 40,
+          color: AppColors.primary.withAlpha(150),
+        ),
+        const SizedBox(height: AppDimensions.sm),
+        const Text(
+          'Add Plant Photo',
+          style: TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+          ),
+        ),
+        Text(
+          'Camera or Gallery',
+          style: TextStyle(
+            fontSize: 11,
+            color: Colors.grey[500],
+          ),
+        ),
+      ],
     );
   }
 }

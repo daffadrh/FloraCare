@@ -306,13 +306,36 @@ class _PlantListScreenState extends State<PlantListScreen> {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    Center(
-                      child: Icon(
-                        Icons.local_florist,
-                        size: 50,
-                        color: AppColors.primary.withAlpha(160),
+                    if (plant.imageUrl != null && plant.imageUrl!.isNotEmpty)
+                      Image.network(
+                        plant.imageUrl!,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, progress) {
+                          if (progress == null) return child;
+                          return const Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) => const Center(
+                          child: Icon(
+                            Icons.broken_image_outlined,
+                            color: AppColors.danger,
+                            size: 30,
+                          ),
+                        ),
+                      )
+                    else
+                      Center(
+                        child: Icon(
+                          Icons.local_florist,
+                          size: 50,
+                          color: AppColors.primary.withAlpha(160),
+                        ),
                       ),
-                    ),
                     // Days left badge
                     Positioned(
                       top: AppDimensions.sm,
