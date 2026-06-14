@@ -4,6 +4,8 @@ import '../../auth/providers/auth_provider.dart';
 import '../providers/schedule_provider.dart';
 import '../models/schedule_config_model.dart';
 
+const Color _accentGreen = Color(0xFF2d694f);
+
 class ScheduleSettingsScreen extends StatefulWidget {
   final dynamic plant;
 
@@ -22,15 +24,13 @@ class _ScheduleSettingsScreenState extends State<ScheduleSettingsScreen> {
   int _fertilizeIntervalDays = 14;
 
   bool _isRepottingEnabled = false;
-  int _repotIntervalDays = 30;
-
-  bool _isRotatingEnabled = false;
-  int _rotateIntervalDays = 7;
+  int _repotIntervalMonths = 6;
 
   bool _isPesticideEnabled = false;
   int _pesticideIntervalDays = 30;
 
   bool _isLoading = false;
+  ScheduleConfigModel? _existingConfig;
 
   @override
   void initState() {
@@ -41,23 +41,20 @@ class _ScheduleSettingsScreenState extends State<ScheduleSettingsScreen> {
   void _loadExistingConfig() {
     final plantId = (widget.plant as dynamic).id;
     final scheduleProvider = context.read<ScheduleProvider>();
-    final config = scheduleProvider.getConfigForPlant(plantId);
+    _existingConfig = scheduleProvider.getConfigForPlant(plantId);
 
-    if (config != null) {
+    if (_existingConfig != null) {
       setState(() {
-        _waterIntervalDays = config.waterIntervalDays;
+        _waterIntervalDays = _existingConfig!.waterIntervalDays;
 
-        _isFertilizingEnabled = config.isFertilizingEnabled;
-        _fertilizeIntervalDays = config.fertilizeIntervalDays;
+        _isFertilizingEnabled = _existingConfig!.isFertilizingEnabled;
+        _fertilizeIntervalDays = _existingConfig!.fertilizeIntervalDays;
 
-        _isRepottingEnabled = config.isRepottingEnabled;
-        _repotIntervalDays = config.repotIntervalDays;
+        _isRepottingEnabled = _existingConfig!.isRepottingEnabled;
+        _repotIntervalMonths = _existingConfig!.repotIntervalMonths;
 
-        _isRotatingEnabled = config.isRotatingEnabled;
-        _rotateIntervalDays = config.rotateIntervalDays;
-
-        _isPesticideEnabled = config.isPesticideEnabled;
-        _pesticideIntervalDays = config.pesticideIntervalDays;
+        _isPesticideEnabled = _existingConfig!.isPesticideEnabled;
+        _pesticideIntervalDays = _existingConfig!.pesticideIntervalDays;
       });
     }
   }
@@ -75,11 +72,13 @@ class _ScheduleSettingsScreenState extends State<ScheduleSettingsScreen> {
         isFertilizingEnabled: _isFertilizingEnabled,
         fertilizeIntervalDays: _fertilizeIntervalDays,
         isRepottingEnabled: _isRepottingEnabled,
-        repotIntervalDays: _repotIntervalDays,
-        isRotatingEnabled: _isRotatingEnabled,
-        rotateIntervalDays: _rotateIntervalDays,
+        repotIntervalMonths: _repotIntervalMonths,
         isPesticideEnabled: _isPesticideEnabled,
         pesticideIntervalDays: _pesticideIntervalDays,
+        lastWateredDate: _existingConfig?.lastWateredDate ?? DateTime.now(),
+        lastFertilizedDate: _existingConfig?.lastFertilizedDate ?? DateTime.now(),
+        lastRepottedDate: _existingConfig?.lastRepottedDate ?? DateTime.now(),
+        lastPesticideDate: _existingConfig?.lastPesticideDate ?? DateTime.now(),
       );
 
       await context.read<ScheduleProvider>().saveScheduleConfig(config, userId);
@@ -99,7 +98,7 @@ class _ScheduleSettingsScreenState extends State<ScheduleSettingsScreen> {
         title: Text('Schedule: $plantName'),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: _accentGreen))
           : Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -110,11 +109,12 @@ class _ScheduleSettingsScreenState extends State<ScheduleSettingsScreen> {
                 context: context,
                 title: 'Watering',
                 icon: Icons.water_drop,
-                iconColor: Colors.blue,
                 isMandatory: true,
                 isEnabled: true,
                 onSwitchChanged: null,
                 intervalValue: _waterIntervalDays,
+                maxSliderValue: 30,
+                unitName: 'Day',
                 onIntervalChanged: (val) => setState(() => _waterIntervalDays = val),
               ),
               const SizedBox(height: 16),
@@ -123,11 +123,12 @@ class _ScheduleSettingsScreenState extends State<ScheduleSettingsScreen> {
                 context: context,
                 title: 'Fertilizing',
                 icon: Icons.science,
-                iconColor: Colors.purple,
                 isMandatory: false,
                 isEnabled: _isFertilizingEnabled,
                 onSwitchChanged: (val) => setState(() => _isFertilizingEnabled = val),
                 intervalValue: _fertilizeIntervalDays,
+                maxSliderValue: 30,
+                unitName: 'Day',
                 onIntervalChanged: (val) => setState(() => _fertilizeIntervalDays = val),
               ),
               const SizedBox(height: 16),
@@ -136,25 +137,13 @@ class _ScheduleSettingsScreenState extends State<ScheduleSettingsScreen> {
                 context: context,
                 title: 'Repotting',
                 icon: Icons.yard,
-                iconColor: Colors.brown,
                 isMandatory: false,
                 isEnabled: _isRepottingEnabled,
                 onSwitchChanged: (val) => setState(() => _isRepottingEnabled = val),
-                intervalValue: _repotIntervalDays,
-                onIntervalChanged: (val) => setState(() => _repotIntervalDays = val),
-              ),
-              const SizedBox(height: 16),
-
-              _buildScheduleCard(
-                context: context,
-                title: 'Rotating to Sunlight',
-                icon: Icons.rotate_right,
-                iconColor: Colors.amber,
-                isMandatory: false,
-                isEnabled: _isRotatingEnabled,
-                onSwitchChanged: (val) => setState(() => _isRotatingEnabled = val),
-                intervalValue: _rotateIntervalDays,
-                onIntervalChanged: (val) => setState(() => _rotateIntervalDays = val),
+                intervalValue: _repotIntervalMonths,
+                maxSliderValue: 12,
+                unitName: 'Month',
+                onIntervalChanged: (val) => setState(() => _repotIntervalMonths = val),
               ),
               const SizedBox(height: 16),
 
@@ -162,11 +151,12 @@ class _ScheduleSettingsScreenState extends State<ScheduleSettingsScreen> {
                 context: context,
                 title: 'Applying Pesticide',
                 icon: Icons.bug_report,
-                iconColor: Colors.red,
                 isMandatory: false,
                 isEnabled: _isPesticideEnabled,
                 onSwitchChanged: (val) => setState(() => _isPesticideEnabled = val),
                 intervalValue: _pesticideIntervalDays,
+                maxSliderValue: 30,
+                unitName: 'Day',
                 onIntervalChanged: (val) => setState(() => _pesticideIntervalDays = val),
               ),
             ],
@@ -179,22 +169,33 @@ class _ScheduleSettingsScreenState extends State<ScheduleSettingsScreen> {
           child: Row(
             children: [
               Expanded(
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: _accentGreen,
+                    side: const BorderSide(color: _accentGreen, width: 1.5),
                     padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
+                  child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
+                    backgroundColor: _accentGreen,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                   onPressed: _isLoading ? null : _saveConfig,
-                  child: const Text('Save Schedule'),
+                  child: const Text('Save Schedule', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
@@ -208,16 +209,19 @@ class _ScheduleSettingsScreenState extends State<ScheduleSettingsScreen> {
     required BuildContext context,
     required String title,
     required IconData icon,
-    required Color iconColor,
     required bool isMandatory,
     required bool isEnabled,
     required Function(bool)? onSwitchChanged,
     required int intervalValue,
+    required double maxSliderValue,
+    required String unitName,
     required Function(int) onIntervalChanged,
   }) {
     final theme = Theme.of(context);
 
     return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      clipBehavior: Clip.hardEdge,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -228,7 +232,7 @@ class _ScheduleSettingsScreenState extends State<ScheduleSettingsScreen> {
               children: [
                 Row(
                   children: [
-                    Icon(icon, color: isEnabled ? iconColor : theme.disabledColor),
+                    Icon(icon, color: isEnabled ? _accentGreen : theme.disabledColor),
                     const SizedBox(width: 12),
                     Text(
                       title,
@@ -244,54 +248,79 @@ class _ScheduleSettingsScreenState extends State<ScheduleSettingsScreen> {
                   Switch(
                     value: isEnabled,
                     onChanged: onSwitchChanged,
-                    activeColor: theme.colorScheme.primary,
+                    activeColor: _accentGreen,
                   )
                 else
-                  Text(
+                  const Text(
                     'Mandatory',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.primary,
+                      color: _accentGreen,
                     ),
                   ),
               ],
             ),
-            if (isEnabled) ...[
-              const Divider(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Every $intervalValue day${intervalValue > 1 ? 's' : ''}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.onSurface,
+
+            // Animasi expanding bar saat switch ditekan
+            ClipRect(
+              child: AnimatedSize(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+                alignment: Alignment.topCenter,
+                child: isEnabled
+                    ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Divider(height: 24),
+                    Text(
+                      'Every $intervalValue $unitName${intervalValue > 1 ? 's' : ''}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        color: theme.colorScheme.onSurface,
+                      ),
                     ),
-                  ),
-                  Text(
-                    'Max 30',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: theme.colorScheme.onSurface.withAlpha(150),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Text(
+                          '1 $unitName',
+                          style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withAlpha(150)),
+                        ),
+                        Expanded(
+                          child: SliderTheme(
+                            data: SliderTheme.of(context).copyWith(
+                              activeTrackColor: _accentGreen,
+                              inactiveTrackColor: _accentGreen.withAlpha(50),
+                              thumbColor: _accentGreen,
+                              trackHeight: 6.0,
+                              overlayColor: _accentGreen.withAlpha(30),
+                              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10.0),
+                            ),
+                            child: Slider(
+                              value: intervalValue.toDouble(),
+                              min: 1,
+                              max: maxSliderValue,
+                              divisions: (maxSliderValue - 1).toInt(),
+                              label: intervalValue.toString(),
+                              onChanged: (double value) {
+                                onIntervalChanged(value.toInt());
+                              },
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '${maxSliderValue.toInt()} ${unitName}s',
+                          style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withAlpha(150)),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                  ],
+                )
+                    : const SizedBox(width: double.infinity, height: 0),
               ),
-              const SizedBox(height: 8),
-              Slider(
-                value: intervalValue.toDouble(),
-                min: 1,
-                max: 30,
-                divisions: 29,
-                activeColor: iconColor,
-                inactiveColor: theme.dividerColor,
-                label: intervalValue.toString(),
-                onChanged: (double value) {
-                  onIntervalChanged(value.toInt());
-                },
-              ),
-            ]
+            ),
           ],
         ),
       ),

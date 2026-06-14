@@ -53,4 +53,27 @@ class ScheduleProvider with ChangeNotifier {
       debugPrint('Error saving schedule: $e');
     }
   }
+
+  // Method untuk menandai tugas telah dikerjakan
+  Future<void> performAction(String plantId, String actionType) async {
+    final config = _configs[plantId];
+    if (config == null) return;
+
+    DateTime now = DateTime.now();
+    Map<String, dynamic> updates = {};
+
+    if (actionType == 'water') updates['lastWateredDate'] = now.toIso8601String();
+    if (actionType == 'fertilize') updates['lastFertilizedDate'] = now.toIso8601String();
+    if (actionType == 'repot') updates['lastRepottedDate'] = now.toIso8601String();
+    if (actionType == 'pesticide') updates['lastPesticideDate'] = now.toIso8601String();
+
+    try {
+      await _firestore.collection('schedules').doc(plantId).update(updates);
+
+      // Update data di memori lokal agar UI langsung berubah tanpa perlu loading ulang
+      await loadConfigs((await _firestore.collection('schedules').doc(plantId).get()).data()?['userId'] ?? '');
+    } catch (e) {
+      debugPrint('Error updating action: $e');
+    }
+  }
 }
