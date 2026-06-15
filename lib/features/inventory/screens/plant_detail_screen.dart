@@ -82,7 +82,8 @@ class PlantDetailScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: Consumer<InventoryProvider>(
+      body: SafeArea(
+        child: Consumer<InventoryProvider>(
         builder: (context, provider, _) {
           // In case plant was deleted
           final plantIndex = provider.plants.indexWhere((p) => p.id == plantId);
@@ -311,6 +312,7 @@ class PlantDetailScreen extends StatelessWidget {
           );
         },
       ),
+    ),
     );
   }
 

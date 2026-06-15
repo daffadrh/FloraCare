@@ -123,6 +123,31 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _confirmLogout() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Logout'),
+          content: const Text('Are you sure you want to log out of FloraCare?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Provider.of<AuthProvider>(context, listen: false).logout();
+              },
+              child: const Text('Logout', style: TextStyle(color: AppColors.danger)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   // Calculate pending task counts based on plant states
   int _getPendingTasksCount(List<Plant> plants) {
     int count = 0;
@@ -186,10 +211,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
-                  const CircleAvatar(
-                    radius: 24,
-                    backgroundColor: AppColors.primaryLight,
-                    child: Icon(Icons.person, color: Colors.white),
+                  IconButton(
+                    onPressed: _confirmLogout,
+                    icon: const CircleAvatar(
+                      radius: 24,
+                      backgroundColor: AppColors.primaryLight,
+                      child: Icon(Icons.person, color: Colors.white),
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                   ),
                 ],
               ),

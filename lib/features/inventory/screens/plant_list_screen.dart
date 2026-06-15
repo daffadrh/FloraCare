@@ -88,20 +88,12 @@ class _PlantListScreenState extends State<PlantListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Garden'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
-            onPressed: () => authProvider.logout(),
-          ),
-        ],
       ),
       body: Consumer<InventoryProvider>(
         builder: (context, provider, _) {
